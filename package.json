@@ -1,0 +1,20 @@
+{
+  "name": "igloo-inc",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A real-time WebGL recreation of igloo.inc — glowing ice igloo on a frozen interstellar plain.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4321"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10"
+  },
+  "dependencies": {
+    "three": "^0.169.0",
+    "gsap": "^3.12.5",
+    "lenis": "^1.1.13"
+  }
+}

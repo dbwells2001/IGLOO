@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <title>IGLOO INC — Building Web3's first upstream IP system chain</title>
+    <meta
+      name="description"
+      content="Our mission is to create the largest onchain community, driving the consumer crypto revolution."
+    />
+    <meta property="og:title" content="IGLOO INC" />
+    <meta
+      property="og:description"
+      content="Building Web3's first upstream IP system chain."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Space+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23070b12'/%3E%3Cpath d='M6 21a10 10 0 0 1 20 0z' fill='none' stroke='%237fe9ff' stroke-width='1.6'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <!-- WebGL mount -->
+    <div id="webgl"></div>
+
+    <!-- Post-process grain / scanline veil -->
+    <div class="veil" aria-hidden="true"></div>
+
+    <!-- Loading screen -->
+    <div id="loader" class="loader">
+      <div class="loader__inner">
+        <div class="loader__mark">
+          <span class="loader__mark-text" data-scramble="IGLOO">IGLOO</span>
+          <sup>INC</sup>
+        </div>
+        <div class="loader__bar"><i></i></div>
+        <div class="loader__meta">
+          <span class="loader__status" data-scramble="INITIALIZING SYSTEM">INITIALIZING SYSTEM</span>
+          <span class="loader__pct">0</span>
+        </div>
+      </div>
+      <div class="loader__lines"></div>
+    </div>
+
+    <!-- Persistent UI chrome -->
+    <div class="ui" id="ui" aria-hidden="false">
+      <header class="nav">
+        <a class="nav__logo" href="/" aria-label="IGLOO INC home">
+          <span data-scramble="IGLOO">IGLOO</span><sup>INC</sup>
+        </a>
+        <nav class="nav__right">
+          <button class="nav__sound" id="sound-toggle" type="button">
+            <span class="nav__eq"><i></i><i></i><i></i><i></i></span>
+            <span>SOUND:&nbsp;</span><span class="nav__sound-state">OFF</span>
+          </button>
+          <a class="nav__link" href="#portfolio" data-scramble="PORTFOLIO">PORTFOLIO</a>
+          <a class="nav__link" href="#connect" data-scramble="CONNECT">CONNECT</a>
+        </nav>
+      </header>
+
+      <div class="corner corner--tl">
+        <p data-scramble="// COPYRIGHT © 2026">// COPYRIGHT © 2026</p>
+        <p data-scramble="IGLOO, INC.">IGLOO, INC.</p>
+        <p data-scramble="ALL RIGHTS RESERVED.">ALL RIGHTS RESERVED.</p>
+      </div>
+
+      <div class="corner corner--tr">
+        <p class="corner__head" data-scramble="////// MANIFESTO">////// MANIFESTO</p>
+        <p class="corner__body">
+          Our mission is to create the largest onchain community, driving the
+          consumer crypto revolution.
+        </p>
+      </div>
+
+      <!-- Section index readout -->
+      <div class="index" aria-hidden="true">
+        <span class="index__cur">01</span>
+        <span class="index__sep">/</span>
+        <span class="index__total">05</span>
+      </div>
+
+      <!-- Scroll hint -->
+      <div class="scrollhint" id="scrollhint">
+        <span data-scramble="SCROLL">SCROLL</span>
+        <span class="scrollhint__rule"></span>
+      </div>
+    </div>
+
+    <!-- Scroll-driven narrative sections (text only; visuals are in WebGL) -->
+    <main class="scroller" id="scroller">
+      <section class="panel panel--hero" data-panel="0">
+        <div class="hero">
+          <h1 class="hero__title">
+            <span class="line" data-scramble="Building Web3's first">Building Web3's first</span>
+            <span class="line line--accent" data-scramble="upstream IP">upstream IP</span>
+            <span class="line" data-scramble="system chain.">system chain.</span>
+          </h1>
+          <p class="hero__sub">
+            A new era of brand building and IP — engineered onchain, frozen in
+            ice, lit from within.
+          </p>
+        </div>
+      </section>
+
+      <section class="panel" data-panel="1"></section>
+      <section class="panel" data-panel="2"></section>
+      <section class="panel" data-panel="3"></section>
+
+      <section class="panel panel--finale" id="connect" data-panel="4">
+        <div class="finale">
+          <p class="finale__kicker" data-scramble="////// THE SYSTEM CHAIN">////// THE SYSTEM CHAIN</p>
+          <h2 class="finale__title">Enter the cryosphere.</h2>
+          <div class="finale__links">
+            <a class="biglink" href="#" data-scramble="PORTFOLIO">PORTFOLIO</a>
+            <a class="biglink" href="#" data-scramble="CONNECT">CONNECT</a>
+          </div>
+          <p class="finale__foot" data-scramble="IGLOO, INC. — © 2026">IGLOO, INC. — © 2026</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- HUD layer for project ice-blocks (leader lines + telemetry), built in JS -->
+    <svg class="hud-lines" id="hud-lines" aria-hidden="true"></svg>
+    <div class="hud-layer" id="hud-layer" aria-hidden="true"></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
