@@ -1,4 +1,8 @@
 import './style.css';
+import '@fontsource/space-grotesk/500.css';
+import '@fontsource/space-grotesk/700.css';
+import '@fontsource/space-mono/400.css';
+import '@fontsource/space-mono/700.css';
 import { Experience } from './Experience.js';
 import { Loader } from './ui/Loader.js';
 import { scrambleAll } from './ui/Scramble.js';

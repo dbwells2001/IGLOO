@@ -413,6 +413,23 @@ a {
   position: relative;
   z-index: 2;
 }
+.finale::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 150%;
+  height: 130%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(5, 8, 14, 0.72),
+    rgba(5, 8, 14, 0.32) 45%,
+    rgba(5, 8, 14, 0) 70%
+  );
+}
 .finale__kicker {
   font-size: var(--fs-micro);
   letter-spacing: 0.4em;
