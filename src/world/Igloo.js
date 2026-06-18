@@ -1,168 +1,134 @@
 import * as THREE from 'three';
-import { noiseGLSL } from './glsl/noise.js';
+import { hash, simplex } from '../gfx/noise.glsl.js';
 
+// Procedural glowing igloo: a hemisphere whose running-bond brick seams emit
+// cyan-white light from within, with snow on the crown, a fresnel rim and a
+// glowing entrance arch. No textures — all seams/snow are computed in GLSL.
 export class Igloo {
-  constructor({ fogColor, fogDensity, radius = 3.2 }) {
+  constructor(stage) {
     this.group = new THREE.Group();
-    this.radius = radius;
+    const R = 5.0;
 
-    this.uniforms = {
-      uTime: { value: 0 },
-      uFogColor: { value: new THREE.Color(fogColor) },
-      uFogDensity: { value: fogDensity },
-      uGlow: { value: 1 },
-    };
+    const geo = new THREE.SphereGeometry(R, 160, 120, 0, Math.PI * 2, 0, Math.PI * 0.5);
 
-    this._buildDome();
-    this._buildDoorway();
-    this._buildInnerLight();
-  }
-
-  _buildDome() {
-    const geo = new THREE.SphereGeometry(this.radius, 160, 100, 0, Math.PI * 2, 0, Math.PI / 2);
-    const mat = new THREE.ShaderMaterial({
-      uniforms: this.uniforms,
-      side: THREE.DoubleSide,
+    this.material = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uGlow: { value: new THREE.Color(0x9ff0ff) },
+        uIce: { value: new THREE.Color(0x6a86a8) },
+      },
       vertexShader: /* glsl */ `
-        varying vec3 vLocal;
-        varying vec3 vWorldPos;
         varying vec3 vNormal;
-        varying float vDepth;
+        varying vec3 vView;
+        varying vec3 vLocal;
         void main(){
-          vLocal = normalize(position);
-          vNormal = normalize(mat3(modelMatrix) * normal);
-          vec4 world = modelMatrix * vec4(position, 1.0);
-          vWorldPos = world.xyz;
-          vec4 mv = viewMatrix * world;
-          vDepth = -mv.z;
+          vLocal = position;
+          vNormal = normalize(normalMatrix * normal);
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          vView = -mv.xyz;
           gl_Position = projectionMatrix * mv;
         }
       `,
       fragmentShader: /* glsl */ `
-        ${noiseGLSL}
-        uniform float uTime;
-        uniform float uGlow;
-        uniform vec3 uFogColor;
-        uniform float uFogDensity;
-        varying vec3 vLocal;
-        varying vec3 vWorldPos;
+        precision highp float;
         varying vec3 vNormal;
-        varying float vDepth;
-
-        const float PI = 3.14159265;
-        const float NUM_ROWS = 11.0;
-        const float BASE_BRICKS = 36.0;
+        varying vec3 vView;
+        varying vec3 vLocal;
+        uniform float uTime;
+        uniform vec3 uGlow, uIce;
+        ${hash}
+        ${simplex}
 
         void main(){
-          vec3 d = normalize(vLocal);
-          float lat = acos(clamp(d.y, -1.0, 1.0));   // 0 top -> PI/2 base
-          float lon = atan(d.z, d.x);                // -PI..PI
+          vec3 p = normalize(vLocal);
+          float lat = acos(clamp(p.y, -1.0, 1.0));        // 0 at top -> PI/2 at base
+          float lon = atan(p.z, p.x);                      // -PI..PI
 
-          float latStep = (PI * 0.5) / NUM_ROWS;
-          float row = floor(lat / latStep);
-          float rowFrac = fract(lat / latStep);
+          // running-bond brick layout
+          float rows = 14.0;
+          float row = lat / (3.14159 * 0.5) * rows;
+          float ri = floor(row);
+          float rowFrac = fract(row);
+          // shrink columns near the top so bricks stay roughly square
+          float cols = max(4.0, floor(46.0 * sin(lat) + 2.0));
+          float offset = mod(ri, 2.0) * 0.5;               // alternate-row offset
+          float colPos = (lon / 6.28318 + 0.5) * cols + offset;
+          float colFrac = fract(colPos);
 
-          float latCenter = (row + 0.5) * latStep;
-          float cols = max(floor(BASE_BRICKS * sin(latCenter)), 5.0);
-          float lonStep = (PI * 2.0) / cols;
-          float rowOffset = mod(row, 2.0) * 0.5 * lonStep;
-          float colFrac = fract((lon + PI + rowOffset) / lonStep);
+          // distance to nearest seam (row + column)
+          float seam = min(
+            min(rowFrac, 1.0 - rowFrac),
+            min(colFrac, 1.0 - colFrac)
+          );
+          float mortar = smoothstep(0.10, 0.0, seam);      // 1 inside seam
 
-          // Seam mask (anti-aliased via fwidth) for mortar lines.
-          float seamW = 0.052;
-          float latDist = min(rowFrac, 1.0 - rowFrac);
-          float lonDist = min(colFrac, 1.0 - colFrac);
-          float latLine = 1.0 - smoothstep(0.0, seamW, latDist);
-          float lonLine = 1.0 - smoothstep(0.0, seamW, lonDist);
-          lonLine *= smoothstep(0.0, 0.16, lat);     // converge cleanly at pole
-          float seam = max(latLine, lonLine);
+          // per-brick tint variation
+          float brickId = hash21(vec2(ri, floor(colPos)));
+          vec3 ice = uIce * (0.7 + brickId * 0.5);
 
-          // Subtle per-brick tonal variation.
-          float brickRnd = snoise(vec3(row * 3.1, floor((lon + PI + rowOffset) / lonStep) * 1.7, 0.0));
+          // light bleeding through the mortar from within
+          float pulse = 0.85 + 0.15 * sin(uTime * 1.5 + brickId * 30.0);
+          vec3 glow = uGlow * mortar * 2.4 * pulse;
 
-          vec3 V = normalize(cameraPosition - vWorldPos);
+          // snow accumulation toward the crown
+          float snow = smoothstep(0.55, 0.05, lat);
+          float snowN = snoise(p.xz * 6.0) * 0.5 + 0.5;
+          snow *= 0.6 + 0.4 * snowN;
+          vec3 base = mix(ice, vec3(0.7, 0.78, 0.9), snow);
+
+          // fresnel rim
           vec3 N = normalize(vNormal);
-          float fres = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 3.0);
+          vec3 V = normalize(vView);
+          float fres = pow(1.0 - max(dot(N, V), 0.0), 3.0);
+          vec3 rim = uGlow * fres * 0.8;
 
-          // Base ice block surface.
-          vec3 ice = vec3(0.045, 0.075, 0.11) + brickRnd * 0.012;
-          float diff = clamp(dot(N, normalize(vec3(-0.3, 0.8, 0.4))), 0.0, 1.0);
-          ice += vec3(0.05, 0.08, 0.12) * diff;
+          // faint translucency through the whole shell
+          float trans = (1.0 - mortar) * 0.18;
 
-          // Snow accumulation toward the crown.
-          float snow = smoothstep(0.55, 0.95, d.y) * (0.6 + 0.4 * snoise(vLocal * 6.0));
-          ice = mix(ice, vec3(0.16, 0.2, 0.26), clamp(snow, 0.0, 1.0));
-
-          // Light from within: brighter near the base seams, gentle breathing.
-          float pulse = 0.82 + 0.18 * sin(uTime * 0.8);
-          vec3 glowCol = vec3(0.5, 0.86, 1.0);
-          float inner = (0.25 + 0.75 * (1.0 - d.y));      // stronger near ground
-          vec3 col = ice;
-          col += glowCol * seam * (1.4 + 1.3 * (1.0 - d.y)) * pulse * uGlow;
-          col += glowCol * inner * 0.10 * pulse * uGlow;   // ambient bleed
-          col += vec3(0.45, 0.8, 1.0) * fres * 0.7;        // cyan rim
-
-          // Tiny glowing oculus at the very top.
-          col += glowCol * smoothstep(0.04, 0.0, lat) * 1.2 * pulse;
-
-          float f = 1.0 - exp(-uFogDensity * uFogDensity * vDepth * vDepth);
-          col = mix(col, uFogColor, clamp(f, 0.0, 1.0));
+          vec3 col = base * (0.35 + trans) + glow + rim;
           gl_FragColor = vec4(col, 1.0);
         }
       `,
     });
-    this.group.add(new THREE.Mesh(geo, mat));
-  }
 
-  _buildDoorway() {
-    // Glowing entrance: a small additive arch on the front (+z) of the dome.
-    const geo = new THREE.PlaneGeometry(1.7, 1.9);
-    const mat = new THREE.ShaderMaterial({
+    this.shell = new THREE.Mesh(geo, this.material);
+    this.group.add(this.shell);
+
+    // entrance tunnel — a short glowing arch poking out the front (+Z)
+    const archMat = new THREE.MeshBasicMaterial({ color: 0x0a0f18 });
+    const tunnel = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.5, 1.7, 3.2, 32, 1, true, 0, Math.PI),
+      archMat
+    );
+    tunnel.rotation.z = Math.PI / 2;
+    tunnel.rotation.y = Math.PI / 2;
+    tunnel.position.set(0, 1.5, R - 0.4);
+    this.group.add(tunnel);
+
+    // glowing doorway disc set just inside the tunnel mouth
+    const doorMat = new THREE.MeshBasicMaterial({
+      color: 0x9ff0ff,
       transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      uniforms: { uTime: this.uniforms.uTime, uGlow: this.uniforms.uGlow },
-      vertexShader: /* glsl */ `
-        varying vec2 vUv;
-        void main(){
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: /* glsl */ `
-        uniform float uTime;
-        uniform float uGlow;
-        varying vec2 vUv;
-        void main(){
-          vec2 p = vUv - vec2(0.5, 0.38);
-          // Rounded-top archway field.
-          float ax = abs(p.x) * 1.9;
-          float top = smoothstep(0.62, 0.0, p.y);
-          float body = smoothstep(0.85, 0.0, ax);
-          float arch = body * (0.35 + 0.65 * top);
-          arch *= smoothstep(-0.45, -0.2, p.y);   // floor cutoff
-          float pulse = 0.82 + 0.18 * sin(uTime * 0.8);
-          vec3 c = mix(vec3(0.4, 0.78, 1.0), vec3(0.85, 0.96, 1.0), arch);
-          float a = pow(arch, 1.4) * pulse * uGlow;
-          gl_FragColor = vec4(c * a * 1.6, a);
-        }
-      `,
+      opacity: 0.9,
     });
-    const arch = new THREE.Mesh(geo, mat);
-    arch.position.set(0, 0.78, this.radius * 0.99);
-    this.group.add(arch);
+    const door = new THREE.Mesh(new THREE.CircleGeometry(1.45, 32, 0, Math.PI), doorMat);
+    door.rotation.x = Math.PI; // flat semicircle standing up
+    door.position.set(0, 1.5, R + 1.4);
+    door.rotation.y = Math.PI;
+    this.door = door;
+    this.group.add(door);
+
+    // an interior light source so the whole structure feels lit from within
+    this.coreLight = new THREE.PointLight(0x9ff0ff, 40, 40, 2);
+    this.coreLight.position.set(0, 2.2, 0);
+    this.group.add(this.coreLight);
+
+    stage.scene.add(this.group);
   }
 
-  _buildInnerLight() {
-    // A real light so nearby snow & the doorway lip pick up the cyan bleed.
-    const light = new THREE.PointLight(0x7fd8ff, 14, 26, 2);
-    light.position.set(0, 1.0, 0);
-    this.group.add(light);
-    this.light = light;
-  }
-
-  update(time) {
-    this.uniforms.uTime.value = time;
-    if (this.light) this.light.intensity = 12 + Math.sin(time * 0.8) * 3;
+  update(t) {
+    this.material.uniforms.uTime.value = t;
+    this.coreLight.intensity = 40 + Math.sin(t * 1.5) * 6;
+    this.door.material.opacity = 0.8 + Math.sin(t * 2.0) * 0.15;
   }
 }

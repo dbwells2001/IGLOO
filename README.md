@@ -1,35 +1,36 @@
 # IGLOO INC — WebGL recreation
 
-A real-time, scroll-driven WebGL experience inspired by [igloo.inc](https://www.igloo.inc/):
+A real-time, scroll-driven WebGL homage to [igloo.inc](https://www.igloo.inc/):
 a glowing ice igloo on a frozen interstellar plain, a cinematic flight past
-faceted ice blocks wrapped in a sci-fi HUD, and a finale of morphing,
-mouse-reactive particles.
+faceted frosted-glass blocks wrapped in a sci-fi HUD, and a finale where a
+particle field morphs into a slowly turning "cryosphere".
 
-The original site is a pure **WebGL2** experience (no video) — so this rebuild is
-also real-time 3D rather than pre-rendered clips. Everything you see is generated
-on the GPU with custom GLSL: the aurora, nebula and starfield, the procedural
-igloo with light bleeding through its brick seams, the displaced snowfield, the
-glass ice blocks, and the particle galaxy. There are **no image, video or audio
-assets** — even the ambient soundscape is synthesized with the Web Audio API.
+Like the original, this is a pure real-time **WebGL2** experience — there are
+**no image, video or audio assets**. The aurora, nebula, starfield, the
+procedural glowing igloo, the displaced snow plain, the snow and the particle
+sphere are all generated on the GPU with custom GLSL. Even the ambient
+soundscape is synthesized with the Web Audio API.
 
 ## Highlights
 
 - **Procedural glowing igloo** — a hemisphere shader builds running-bond brick
-  seams that emit cyan-white light from within, with snow accumulation, a fresnel
-  rim, a glowing entrance and a soft glow pool cast onto the snow.
-- **Interstellar sky** — gradient space dome, fbm nebula, a milky-way band, 2.6k
-  twinkling stars and a drifting aurora curtain.
-- **Cinematic scroll** — a keyframed camera flight (Lenis smooth scroll) travels
-  from the hero, past three floating **frosted glass ice blocks** (real
-  transmission/refraction) each holding a glowing object, to a particle finale.
-- **Tracking HUD** — telemetry tags, crosshairs and SVG leader lines that follow
-  each ice block by projecting its 3D position to screen space every frame.
-- **Particle finale** — a 26k-point galaxy that morphs toward a sphere, drifts on
-  organic noise, and repels from the cursor.
-- **Post-processing** — Unreal bloom + a custom grade pass (chromatic aberration
-  that spikes on fast scroll, vignette, film grain) over an HDR pipeline.
+  seams that bleed cyan-white light from within, with snow on the crown, a
+  fresnel rim, a glowing entrance and an interior light.
+- **Interstellar sky** — gradient space dome, fbm nebula, a milky-way band,
+  procedural twinkling stars and a drifting aurora curtain.
+- **Cinematic scroll** — a keyframed camera flight (Lenis smooth scroll) eased
+  through five beats, from the hero to an ascent into the particle cryosphere.
+- **Frosted ice monoliths** — three faceted blocks with real
+  transmission/refraction, each encasing a glowing core.
+- **Tracking HUD** — telemetry tags and SVG leader lines that follow each
+  monolith by projecting its 3D position to screen space, fading in around the
+  monolith beat.
+- **Particle finale** — a ~22k-point field that morphs into a sphere, drifts on
+  organic noise and repels from the cursor.
+- **Post-processing** — Unreal bloom + a custom grade pass (chromatic
+  aberration that spikes on fast scroll, vignette, film grain).
 - **Decode UI** — every label resolves with a glitch/scramble effect; monospace
-  HUD, rounded display logo, premium loading screen, synthesized ambient audio.
+  HUD, premium loading screen, synthesized ambient audio.
 
 ## Run it
 
@@ -38,45 +39,64 @@ npm install
 npm run dev      # http://localhost:4321
 ```
 
-Build / preview a production bundle:
+Production build / preview:
 
 ```bash
 npm run build
 npm run preview
 ```
 
-Requires a browser with WebGL2 (all modern browsers).
+### Single-file build (open with no server)
+
+```bash
+npm run build:single   # outputs dist-single/, then inlines to igloo-standalone.html
+```
+
+`igloo-standalone.html` is one self-contained file (JS, CSS and fonts inlined)
+that runs straight from `file://` — just open it in a browser. Requires WebGL2.
 
 ## Controls
 
-- **Scroll** — drive the cinematic camera through the five sections.
-- **SOUND: OFF/ON** — toggle the synthesized ambient bed (needs a click first,
-  per browser autoplay rules).
+- **Scroll** — drive the cinematic camera through the five beats.
+- **SOUND** — toggle the synthesized ambient bed (needs a click first, per
+  browser autoplay rules).
 - **Move the mouse** — parallax on the camera; repels the finale particles.
-- **PORTFOLIO / CONNECT** — smooth-scroll to the project blocks / finale.
+- **PORTFOLIO / CONNECT** — smooth-scroll to the monoliths / finale.
 
-## Project structure
+## Architecture
+
+A small "Stage" engine owns the renderer, scene, camera, post pipeline and the
+render loop; actors register per-frame updates with it. Scroll progress fans out
+to the camera rig, the world and the HUD.
 
 ```
 index.html                 UI chrome (loader, nav, corners, hero, finale, HUD roots)
 src/
   main.js                  Boot sequence, UI reveal, scroll + sound wiring
-  Experience.js            Renderer, scene, camera flight, render loop
-  style.css                Cold monospace / sci-fi HUD styling
+  app/
+    App.js                 Top-level orchestrator
+    Stage.js               Renderer + scene + camera + render loop
+    Scroll.js              Lenis smooth-scroll wrapper (progress + velocity)
+    CameraRig.js           Keyframed, scroll-driven camera flight
   world/
-    Sky.js                 Space dome + nebula + starfield + aurora
-    Snowfield.js           Displaced dune terrain w/ sparkle + glow pool
+    World.js               Assembles all actors + scene lighting
+    Sky.js                 Space dome + nebula + stars + aurora
+    Terrain.js             Displaced snow plain w/ sparkle + glow pool
     Igloo.js               Procedural glowing brick-seam igloo
-    IceBlocks.js           Faceted glass blocks with frozen objects
-    Particles.js           Morphing, mouse-reactive particle galaxy
-    glsl/noise.js          Shared simplex/fbm GLSL
-  postprocessing/PostFX.js Bloom + chromatic aberration / vignette / grain
+    Monoliths.js           Frosted-glass blocks (transmission) with cores
+    Snow.js                Drifting snow particles
+    Finale.js              Morphing, mouse-reactive particle sphere
+  fx/
+    Post.js                Bloom + chromatic aberration / vignette / grain
+  gfx/
+    noise.glsl.js          Shared simplex / fbm / hash GLSL
   ui/
     Loader.js              Loading screen controller
     Scramble.js            Text decode/scramble effect
-    HUD.js                 Projected telemetry + leader lines
+    Hud.js                 Projected telemetry + leader lines
   audio/Ambient.js         Web Audio synthesized ambient bed
-  utils/math.js            lerp / clamp / smoothstep / damp
+  lib/math.js              lerp / clamp / smoothstep / damp / easing
+  styles/main.css          Cold monospace / sci-fi HUD styling
 ```
 
 ## Notes
